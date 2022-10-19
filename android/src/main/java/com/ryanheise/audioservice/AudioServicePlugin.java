@@ -60,6 +60,7 @@ import io.flutter.embedding.engine.dart.DartExecutor;
 import io.flutter.embedding.engine.dart.DartExecutor.DartCallback;
 
 import android.content.res.AssetManager;
+import android.util.Log;
 
 import io.flutter.view.FlutterNativeView;
 import io.flutter.view.FlutterRunArguments;
@@ -460,6 +461,13 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
                     break;
                 }
                 case "updateMediaItem": {
+                    try {
+                        Map<?, ?> rawMediaItem = (Map<?, ?>) call.arguments;
+                        MediaMetadataCompat mediaMetadata = createMediaMetadata(rawMediaItem);
+                        AudioService.instance.setMetadata(mediaMetadata);
+                    } catch (Exception e) {
+                        Log.e("instance.setMetadata", e.getMessage());
+                    }
                     backgroundHandler().invokeMethod(result, "onUpdateMediaItem", call.arguments);
                     break;
                 }
