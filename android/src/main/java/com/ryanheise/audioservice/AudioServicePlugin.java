@@ -260,25 +260,29 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
             public void onConnected() {
                 try {
                     //Activity activity = registrar.activity();
-                    MediaSessionCompat.Token token = mediaBrowser.getSessionToken();
-                    mediaController = new MediaControllerCompat(context, token);
-                    if (activity != null) {
-                        MediaControllerCompat.setMediaController(activity, mediaController);
-                    }
-                    mediaController.registerCallback(controllerCallback);
-                    PlaybackStateCompat state = mediaController.getPlaybackState();
-                    controllerCallback.onPlaybackStateChanged(state);
-                    MediaMetadataCompat metadata = mediaController.getMetadata();
-                    controllerCallback.onQueueChanged(mediaController.getQueue());
-                    controllerCallback.onMetadataChanged(metadata);
-
-                    synchronized (this) {
-                        if (initEnginePending) {
-                            backgroundHandler.initEngine();
-                            initEnginePending = false;
+                    if(context != null) {
+                        MediaSessionCompat.Token token = mediaBrowser.getSessionToken();
+                        mediaController = new MediaControllerCompat(context, token);
+                        if (activity != null) {
+                            MediaControllerCompat.setMediaController(activity, mediaController);
                         }
+                        mediaController.registerCallback(controllerCallback);
+                        PlaybackStateCompat state = mediaController.getPlaybackState();
+                        controllerCallback.onPlaybackStateChanged(state);
+                        MediaMetadataCompat metadata = mediaController.getMetadata();
+                        controllerCallback.onQueueChanged(mediaController.getQueue());
+                        controllerCallback.onMetadataChanged(metadata);
+
+                        synchronized (this) {
+                            if (initEnginePending) {
+                                backgroundHandler.initEngine();
+                                initEnginePending = false;
+                            }
+                        }
+                        sendConnectResult(true);
+                    } else {
+                        sendConnectResult(false);
                     }
-                    sendConnectResult(true);
                 } catch (Exception e) {
                     sendConnectResult(false);
                     throw new RuntimeException(e);
