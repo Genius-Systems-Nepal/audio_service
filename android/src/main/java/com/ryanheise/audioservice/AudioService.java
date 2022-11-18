@@ -245,7 +245,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         } else if (wasPlaying && !playing) {
             exitPlayingState();
         }
-
+        
         updateNotification();
     }
 
@@ -444,7 +444,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         return mediaMetadataCache.get(mediaId);
     }
 
-a    @Override
+    @Override
     public void onCreate() {
         super.onCreate();
         instance = this;
