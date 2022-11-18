@@ -204,7 +204,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         Intent intent = new Intent(this, MediaButtonReceiver.class);
         intent.setAction(Intent.ACTION_MEDIA_BUTTON);
         intent.putExtra(Intent.EXTRA_KEY_EVENT, new KeyEvent(KeyEvent.ACTION_DOWN, keyCode));
-        return PendingIntent.getBroadcast(this, keyCode, intent, PendingIntent.FLAG_IMMUTABLE;
+        return PendingIntent.getBroadcast(this, keyCode, intent, PendingIntent.FLAG_IMMUTABLE);
     }
 
     PendingIntent buildDeletePendingIntent() {
@@ -444,7 +444,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         return mediaMetadataCache.get(mediaId);
     }
 
-    @Override
+a    @Override
     public void onCreate() {
         super.onCreate();
         instance = this;
