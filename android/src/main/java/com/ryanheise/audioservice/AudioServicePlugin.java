@@ -217,7 +217,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         }
     }
 
-    private static class ClientHandler implements MethodCallHandler {
+    private static class ClientHandler implements MethodCallHandler, AudioService.MediaButtonListener {
         private Context context;
         private Activity activity;
         private MethodChannel channel;
@@ -361,7 +361,7 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
 
                     final String appBundlePath = FlutterMain.findAppBundlePath(context.getApplicationContext());
                     backgroundHandler = new BackgroundHandler(callbackHandle, appBundlePath, androidEnableQueue);
-                    AudioService.init(activity, androidResumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationColor, androidNotificationIcon, androidShowNotificationBadge ,androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, artDownscaleSize, backgroundHandler);
+                    AudioService.init(activity, androidResumeOnClick, androidNotificationChannelName, androidNotificationChannelDescription, NOTIFICATION_CLICK_ACTION, androidNotificationColor, androidNotificationIcon, androidShowNotificationBadge ,androidNotificationClickStartsActivity, androidNotificationOngoing, androidStopForegroundOnPause, artDownscaleSize, backgroundHandler,this);
 
                     synchronized (connectionCallback) {
                         if (mediaController != null)
@@ -584,6 +584,11 @@ public class AudioServicePlugin implements FlutterPlugin, ActivityAware {
         public void invokeMethod(String method, Object... args) {
             ArrayList<Object> list = new ArrayList<Object>(Arrays.asList(args));
             channel.invokeMethod(method, list);
+        }
+
+        @Override
+        public void onMediaButtonClicked(MediaControl data) {
+            invokeMethod("onMediaButtonClicked",data.ordinal());
         }
     }
 

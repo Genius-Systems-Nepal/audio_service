@@ -58,6 +58,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     private static PendingIntent contentIntent;
     private static boolean resumeOnClick;
     private static ServiceListener listener;
+    private static MediaButtonListener mediaButtonListener;
     static String androidNotificationChannelName;
     static String androidNotificationChannelDescription;
     static Integer notificationColor;
@@ -78,7 +79,7 @@ public class AudioService extends MediaBrowserServiceCompat {
     private static int shuffleMode;
     private static boolean notificationCreated;
 
-    public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, String action, Integer notificationColor, String androidNotificationIcon, boolean androidShowNotificationBadge, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, Size artDownscaleSize, ServiceListener listener) {
+    public static void init(Activity activity, boolean resumeOnClick, String androidNotificationChannelName, String androidNotificationChannelDescription, String action, Integer notificationColor, String androidNotificationIcon, boolean androidShowNotificationBadge, boolean androidNotificationClickStartsActivity, boolean androidNotificationOngoing, boolean androidStopForegroundOnPause, Size artDownscaleSize, ServiceListener listener, MediaButtonListener mediaButtonListener) {
         if (running)
             throw new IllegalStateException("AudioService already running");
         running = true;
@@ -88,6 +89,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         intent.setAction(action);
         contentIntent = PendingIntent.getActivity(context, REQUEST_CONTENT_INTENT, intent, PendingIntent.FLAG_IMMUTABLE);
         AudioService.listener = listener;
+        AudioService.mediaButtonListener = mediaButtonListener;
         AudioService.resumeOnClick = resumeOnClick;
         AudioService.androidNotificationChannelName = androidNotificationChannelName;
         AudioService.androidNotificationChannelDescription = androidNotificationChannelDescription;
@@ -108,7 +110,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         // Get max available VM memory, exceeding this amount will throw an
         // OutOfMemory exception. Stored in kilobytes as LruCache takes an
         // int in its constructor.
-        final int maxMemory = (int)(Runtime.getRuntime().maxMemory() / 1024);
+        final int maxMemory = (int) (Runtime.getRuntime().maxMemory() / 1024);
 
         // Use 1/8th of the available memory for this memory cache.
         final int cacheSize = maxMemory / 8;
@@ -245,25 +247,38 @@ public class AudioService extends MediaBrowserServiceCompat {
         } else if (wasPlaying && !playing) {
             exitPlayingState();
         }
-        
+
         updateNotification();
     }
 
     public int getPlaybackState() {
         switch (processingState) {
-        case none: return PlaybackStateCompat.STATE_NONE;
-        case connecting: return PlaybackStateCompat.STATE_CONNECTING;
-        case ready: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
-        case buffering: return PlaybackStateCompat.STATE_BUFFERING;
-        case fastForwarding: return PlaybackStateCompat.STATE_FAST_FORWARDING;
-        case rewinding: return PlaybackStateCompat.STATE_REWINDING;
-        case skippingToPrevious: return PlaybackStateCompat.STATE_SKIPPING_TO_PREVIOUS;
-        case skippingToNext: return PlaybackStateCompat.STATE_SKIPPING_TO_NEXT;
-        case skippingToQueueItem: return PlaybackStateCompat.STATE_SKIPPING_TO_QUEUE_ITEM;
-        case completed: return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
-        case stopped: return PlaybackStateCompat.STATE_STOPPED;
-        case error: return PlaybackStateCompat.STATE_ERROR;
-        default: return PlaybackStateCompat.STATE_NONE;
+            case none:
+                return PlaybackStateCompat.STATE_NONE;
+            case connecting:
+                return PlaybackStateCompat.STATE_CONNECTING;
+            case ready:
+                return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
+            case buffering:
+                return PlaybackStateCompat.STATE_BUFFERING;
+            case fastForwarding:
+                return PlaybackStateCompat.STATE_FAST_FORWARDING;
+            case rewinding:
+                return PlaybackStateCompat.STATE_REWINDING;
+            case skippingToPrevious:
+                return PlaybackStateCompat.STATE_SKIPPING_TO_PREVIOUS;
+            case skippingToNext:
+                return PlaybackStateCompat.STATE_SKIPPING_TO_NEXT;
+            case skippingToQueueItem:
+                return PlaybackStateCompat.STATE_SKIPPING_TO_QUEUE_ITEM;
+            case completed:
+                return playing ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED;
+            case stopped:
+                return PlaybackStateCompat.STATE_STOPPED;
+            case error:
+                return PlaybackStateCompat.STATE_ERROR;
+            default:
+                return PlaybackStateCompat.STATE_NONE;
         }
     }
 
@@ -328,7 +343,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     @RequiresApi(Build.VERSION_CODES.O)
     private void createChannel() {
-        NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         NotificationChannel channel = notificationManager.getNotificationChannel(notificationChannelId);
         if (channel == null) {
             channel = new NotificationChannel(notificationChannelId, androidNotificationChannelName, NotificationManager.IMPORTANCE_LOW);
@@ -341,7 +356,7 @@ public class AudioService extends MediaBrowserServiceCompat {
 
     private void updateNotification() {
         if (!notificationCreated) return;
-        NotificationManager notificationManager = (NotificationManager)getSystemService(Context.NOTIFICATION_SERVICE);
+        NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         notificationManager.notify(NOTIFICATION_ID, buildNotification());
     }
 
@@ -397,7 +412,7 @@ public class AudioService extends MediaBrowserServiceCompat {
             builder.putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_ICON_URI, artUri);
             String artCacheFilePath = null;
             if (extras != null) {
-                artCacheFilePath = (String)extras.get("artCacheFile");
+                artCacheFilePath = (String) extras.get("artCacheFile");
             }
             if (artCacheFilePath != null) {
                 Bitmap bitmap = loadArtBitmapFromFile(artCacheFilePath);
@@ -420,16 +435,16 @@ public class AudioService extends MediaBrowserServiceCompat {
         }
         if (extras != null) {
             for (Object o : extras.keySet()) {
-                String key = (String)o;
+                String key = (String) o;
                 Object value = extras.get(key);
                 if (value instanceof Long) {
-                    builder.putLong("extra_long_" + key, (Long)value);
+                    builder.putLong("extra_long_" + key, (Long) value);
                 } else if (value instanceof Integer) {
-                    builder.putLong("extra_long_" + key, (Integer)value);
+                    builder.putLong("extra_long_" + key, (Integer) value);
                 } else if (value instanceof String) {
-                    builder.putString("extra_string_" + key, (String)value);
+                    builder.putString("extra_string_" + key, (String) value);
                 } else if (value instanceof Boolean) {
-                    builder.putLong("extra_boolean_" + key, (Boolean)value ? 1 : 0);
+                    builder.putLong("extra_boolean_" + key, (Boolean) value ? 1 : 0);
                 } else if (value instanceof Double) {
                     builder.putString("extra_double_" + key, value.toString());
                 }
@@ -460,7 +475,7 @@ public class AudioService extends MediaBrowserServiceCompat {
         setSessionToken(mediaSession.getSessionToken());
         mediaSession.setQueue(queue);
 
-        PowerManager pm = (PowerManager)getSystemService(Context.POWER_SERVICE);
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, AudioService.class.getName());
     }
 
@@ -613,42 +628,43 @@ public class AudioService extends MediaBrowserServiceCompat {
         @Override
         public boolean onMediaButtonEvent(Intent mediaButtonEvent) {
             if (listener == null) return false;
-            final KeyEvent event = (KeyEvent)mediaButtonEvent.getExtras().get(Intent.EXTRA_KEY_EVENT);
+            final KeyEvent event = (KeyEvent) mediaButtonEvent.getExtras().get(Intent.EXTRA_KEY_EVENT);
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 switch (event.getKeyCode()) {
-                case KEYCODE_BYPASS_PLAY:
-                    onPlay();
-                    break;
-                case KEYCODE_BYPASS_PAUSE:
-                    onPause();
-                    break;
-                case KeyEvent.KEYCODE_MEDIA_STOP:
-                    onStop();
-                    break;
-                case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
-                    onFastForward();
-                    break;
-                case KeyEvent.KEYCODE_MEDIA_REWIND:
-                    onRewind();
-                    break;
-                // Android unfortunately reroutes media button clicks to
-                // KEYCODE_MEDIA_PLAY/PAUSE instead of the expected KEYCODE_HEADSETHOOK
-                // or KEYCODE_MEDIA_PLAY_PAUSE. As a result, we can't genuinely tell if
-                // onMediaButtonEvent was called because a media button was actually
-                // pressed or because a PLAY/PAUSE action was pressed instead! To get
-                // around this, we make PLAY and PAUSE actions use different keycodes:
-                // KEYCODE_BYPASS_PLAY/PAUSE. Now if we get KEYCODE_MEDIA_PLAY/PUASE
-                // we know it is actually a media button press.
-                case KeyEvent.KEYCODE_MEDIA_NEXT:
-                case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
-                case KeyEvent.KEYCODE_MEDIA_PLAY:
-                case KeyEvent.KEYCODE_MEDIA_PAUSE:
-                    // These are the "genuine" media button click events
-                case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-                case KeyEvent.KEYCODE_HEADSETHOOK:
-                    MediaControllerCompat controller = mediaSession.getController();
-                    listener.onClick(mediaControl(event));
-                    break;
+                    case KEYCODE_BYPASS_PLAY:
+                        onPlay();
+                        break;
+                    case KEYCODE_BYPASS_PAUSE:
+                        onPause();
+                        break;
+                    case KeyEvent.KEYCODE_MEDIA_STOP:
+                        onStop();
+                        break;
+                    case KeyEvent.KEYCODE_MEDIA_FAST_FORWARD:
+                        onFastForward();
+                        break;
+                    case KeyEvent.KEYCODE_MEDIA_REWIND:
+                        onRewind();
+                        break;
+                    // Android unfortunately reroutes media button clicks to
+                    // KEYCODE_MEDIA_PLAY/PAUSE instead of the expected KEYCODE_HEADSETHOOK
+                    // or KEYCODE_MEDIA_PLAY_PAUSE. As a result, we can't genuinely tell if
+                    // onMediaButtonEvent was called because a media button was actually
+                    // pressed or because a PLAY/PAUSE action was pressed instead! To get
+                    // around this, we make PLAY and PAUSE actions use different keycodes:
+                    // KEYCODE_BYPASS_PLAY/PAUSE. Now if we get KEYCODE_MEDIA_PLAY/PUASE
+                    // we know it is actually a media button press.
+                    case KeyEvent.KEYCODE_MEDIA_NEXT:
+                    case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+                    case KeyEvent.KEYCODE_MEDIA_PLAY:
+                    case KeyEvent.KEYCODE_MEDIA_PAUSE:
+                        // These are the "genuine" media button click events
+                    case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                    case KeyEvent.KEYCODE_HEADSETHOOK:
+                        MediaControllerCompat controller = mediaSession.getController();
+                        mediaButtonListener.onMediaButtonClicked(mediaControl(event));
+                        listener.onClick(mediaControl(event));
+                        break;
                 }
             }
             return true;
@@ -656,15 +672,15 @@ public class AudioService extends MediaBrowserServiceCompat {
 
         private MediaControl mediaControl(KeyEvent event) {
             switch (event.getKeyCode()) {
-            case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
-            case KeyEvent.KEYCODE_HEADSETHOOK:
-                return MediaControl.media;
-            case KeyEvent.KEYCODE_MEDIA_NEXT:
-                return MediaControl.next;
-            case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
-                return MediaControl.previous;
-            default:
-                return MediaControl.media;
+                case KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE:
+                case KeyEvent.KEYCODE_HEADSETHOOK:
+                    return MediaControl.media;
+                case KeyEvent.KEYCODE_MEDIA_NEXT:
+                    return MediaControl.next;
+                case KeyEvent.KEYCODE_MEDIA_PREVIOUS:
+                    return MediaControl.previous;
+                default:
+                    return MediaControl.media;
             }
         }
 
@@ -812,5 +828,10 @@ public class AudioService extends MediaBrowserServiceCompat {
         void onTaskRemoved();
 
         void onClose();
+    }
+
+    public static interface MediaButtonListener {
+
+        void onMediaButtonClicked(MediaControl data);
     }
 }

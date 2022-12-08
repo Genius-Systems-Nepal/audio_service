@@ -553,6 +553,14 @@ class AudioService {
   static ValueStream<MediaItem?> get currentMediaItemStream =>
       _currentMediaItemSubject.stream;
 
+  static final _mediaButtonListenerSubject = BehaviorSubject<MediaButton?>();
+
+  /// A stream that broadcasts the media button clicked [MediaButton].
+  static ValueStream<MediaButton?> get mediaButtonListenerStream =>
+      _mediaButtonListenerSubject.stream;
+
+  static MediaButton? get mediaButtonClicked => _mediaButtonListenerSubject.nvalue;
+
   /// The current [MediaItem].
   static MediaItem? get currentMediaItem => _currentMediaItemSubject.nvalue;
 
@@ -663,10 +671,16 @@ class AudioService {
               _queueSubject.add(null);
               _notificationSubject.add(false);
               _runningSubject.add(false);
+              _mediaButtonListenerSubject.add(null);
               _afterStop = true;
               break;
             case 'notificationClicked':
               _notificationSubject.add(call.arguments[0]);
+              break;
+            case 'onMediaButtonClicked':
+              final List args = call.arguments;
+              MediaButton button = MediaButton.values[args[0]];
+              _mediaButtonListenerSubject.add(button);
               break;
           }
         };
