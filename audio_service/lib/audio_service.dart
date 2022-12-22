@@ -1933,6 +1933,9 @@ abstract class AudioHandler {
 
   /// A stream of custom states.
   ValueStream<dynamic> get customState;
+
+  /// A stream of notification click event.
+  ValueStream<MediaButton> get notificationClickEvent;
 }
 
 /// A [SwitchAudioHandler] wraps another [AudioHandler] that may be switched for
@@ -1947,6 +1950,8 @@ class SwitchAudioHandler extends CompositeAudioHandler {
   final BehaviorSubject<RatingStyle> _ratingStyle = BehaviorSubject();
   final PublishSubject<dynamic> _customEvent = PublishSubject<dynamic>();
   final BehaviorSubject<dynamic> _customState = BehaviorSubject<dynamic>();
+  final BehaviorSubject<MediaButton> _notificationClickEvent =
+      BehaviorSubject<MediaButton>();
 
   @override
   ValueStream<PlaybackState> get playbackState => _playbackState;
@@ -1965,6 +1970,9 @@ class SwitchAudioHandler extends CompositeAudioHandler {
   Stream<dynamic> get customEvent => _customEvent;
   @override
   ValueStream<dynamic> get customState => _customState;
+  @override
+  ValueStream<MediaButton> get notificationClickEvent =>
+      _notificationClickEvent;
 
   StreamSubscription<PlaybackState>? _playbackStateSubscription;
   StreamSubscription<List<MediaItem>>? _queueSubscription;
@@ -1974,6 +1982,7 @@ class SwitchAudioHandler extends CompositeAudioHandler {
   StreamSubscription<RatingStyle>? _ratingStyleSubscription;
   StreamSubscription<dynamic>? _customEventSubscription;
   StreamSubscription<dynamic>? _customStateSubscription;
+  StreamSubscription<MediaButton>? _notificationClickEventSubscription;
 
   /// Creates a [SwitchAudioHandler] with an initial [inner] handler, which
   /// defaults to a no-op handler.
@@ -1999,6 +2008,7 @@ class SwitchAudioHandler extends CompositeAudioHandler {
     _ratingStyleSubscription?.cancel();
     _customEventSubscription?.cancel();
     _customStateSubscription?.cancel();
+    _notificationClickEventSubscription?.cancel();
     _inner = newInner;
     _playbackStateSubscription = inner.playbackState.listen(_playbackState.add);
     _queueSubscription = inner.queue.listen(_queue.add);
@@ -2010,6 +2020,8 @@ class SwitchAudioHandler extends CompositeAudioHandler {
     _ratingStyleSubscription = inner.ratingStyle.listen(_ratingStyle.add);
     _customEventSubscription = inner.customEvent.listen(_customEvent.add);
     _customStateSubscription = inner.customState.listen(_customState.add);
+    _notificationClickEventSubscription =
+        inner.notificationClickEvent.listen(_notificationClickEvent.add);
   }
 }
 
@@ -2077,8 +2089,9 @@ class CompositeAudioHandler extends AudioHandler {
 
   @override
   @mustCallSuper
-  Future<void> click([MediaButton button = MediaButton.media]) =>
-      _inner.click(button);
+  Future<void> click([MediaButton button = MediaButton.media]) async {
+    _inner.click(button);
+  }
 
   @override
   @mustCallSuper
@@ -2242,6 +2255,10 @@ class CompositeAudioHandler extends AudioHandler {
 
   @override
   ValueStream<dynamic> get customState => _inner.customState;
+
+  @override
+  ValueStream<MediaButton> get notificationClickEvent =>
+      _inner.notificationClickEvent;
 }
 
 class _IsolateRequest {
@@ -2598,6 +2615,10 @@ class _ClientIsolatedAudioHandler implements BaseAudioHandler {
   @override
   final BehaviorSubject<dynamic> customState = BehaviorSubject<dynamic>();
 
+  @override
+  final BehaviorSubject<MediaButton> notificationClickEvent =
+      BehaviorSubject<MediaButton>();
+
   _ClientIsolatedAudioHandler({
     this.portName = IsolatedAudioHandler.defaultPortName,
   });
@@ -2611,6 +2632,8 @@ class _ClientIsolatedAudioHandler implements BaseAudioHandler {
     await _syncSubject(ratingStyle, 'ratingStyle');
     await _syncSubject<dynamic>(customEvent, 'customEvent');
     await _syncSubject<dynamic>(customState, 'customState');
+    await _syncSubject<dynamic>(
+        notificationClickEvent, 'notificationClickEvent');
   }
 
   /// Opens a channel to the [IsolatedAudioSource] through which this proxy can
@@ -2664,8 +2687,10 @@ class _ClientIsolatedAudioHandler implements BaseAudioHandler {
   Future<void> pause() => _send('pause');
 
   @override
-  Future<void> click([MediaButton button = MediaButton.media]) =>
-      _send('click', <dynamic>[button]);
+  Future<void> click([MediaButton button = MediaButton.media]) async {
+    _send('click', <dynamic>[button]);
+    _send('notificationClickEvent', <dynamic>[button]);
+  }
 
   @override
   Future<void> stop() => _send('stop');
@@ -2817,6 +2842,7 @@ class _ClientIsolatedAudioHandler implements BaseAudioHandler {
 /// * [queueTitle]
 /// * [androidPlaybackInfo]
 /// * [ratingStyle]
+/// * [notificationClickEvent]
 ///
 /// Besides them, there's also [customEvent] which is a [PublishSubject].
 ///
@@ -2945,6 +2971,17 @@ class BaseAudioHandler extends AudioHandler {
   // ignore: close_sinks
   final BehaviorSubject<dynamic> customState = BehaviorSubject<dynamic>();
 
+  /// A controller for broadcasting the notification click event to the app's UI.
+  /// Example usage:
+  ///
+  /// ```dart
+  /// notificationClickEvent.add(MediaButton.next);
+  /// ```
+  @override
+  // ignore: close_sinks
+  final BehaviorSubject<MediaButton> notificationClickEvent =
+      BehaviorSubject<MediaButton>();
+
   /// Constructor. Normally this is called from subclasses via `super`.
   BaseAudioHandler() : super._();
 
@@ -2984,6 +3021,7 @@ class BaseAudioHandler extends AudioHandler {
 
   @override
   Future<void> click([MediaButton button = MediaButton.media]) async {
+    notificationClickEvent.add(button);
     switch (button) {
       case MediaButton.media:
         if (playbackState.nvalue?.playing == true) {
