@@ -7,6 +7,8 @@ pubspec.lock
 
 build/
 
+.vscode
+
 doc/
 **/ios/Flutter/flutter_export_environment.sh
 android/.project

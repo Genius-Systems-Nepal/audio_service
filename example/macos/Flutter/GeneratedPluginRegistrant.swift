@@ -9,7 +9,7 @@ import audio_service
 import audio_session
 import flutter_tts
 import just_audio
-import path_provider_macos
+import path_provider_foundation
 import sqflite
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
